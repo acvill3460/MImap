@@ -1,0 +1,1014 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ministeri istituiti · Arcidiocesi di Torino e Diocesi di Susa</title>
+<meta name="description" content="Dove sono i ministri istituiti, quelli in formazione e i candidati nelle diocesi di Torino e di Susa.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='12' fill='none' stroke='%239e1b32' stroke-width='7' stroke-dasharray='40 100'/%3E%3Ccircle cx='16' cy='16' r='12' fill='none' stroke='%236a4c9c' stroke-width='7' stroke-dasharray='0 40 22 100'/%3E%3Ccircle cx='16' cy='16' r='12' fill='none' stroke='%232f8a5a' stroke-width='7' stroke-dasharray='0 62 14 100'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&family=EB+Garamond:ital,wght@0,500;0,600;1,500;1,600&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root {
+  --inchiostro: #1c2431;
+  --inchiostro-2: #5b6472;
+  --inchiostro-3: #8a919c;
+  --carta: #ffffff;
+  --riga: #e4dfd3;
+  --velo: #f6f4ee;
+  --istituito: #9e1b32;
+  --formazione: #6a4c9c;
+  --candidato: #2f8a5a;
+  --torino: #f2cf3a;
+  --susa: #8fb9a8;
+  --serif: "EB Garamond", Garamond, "Times New Roman", serif;
+  --sans: "Alegreya Sans", "Gill Sans", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font: 16px/1.4 var(--sans);
+  color: var(--inchiostro);
+  background: var(--carta);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--inchiostro); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.app { display: grid; grid-template-columns: minmax(300px, 368px) 1fr; height: 100vh; height: 100dvh; }
+.pannello {
+  overflow-y: auto;
+  border-right: 1px solid var(--riga);
+  padding: max(22px, env(safe-area-inset-top)) 22px max(18px, env(safe-area-inset-bottom)) max(22px, env(safe-area-inset-left));
+}
+.mappa-box { position: relative; min-height: 0; }
+#mappa { position: absolute; inset: 0; background: #f3f2ee; }
+
+/* Testata */
+h1 { font: 600 31px/1.05 var(--serif); margin: 0; letter-spacing: -0.005em; }
+.sottotitolo { font: italic 500 18px/1.25 var(--serif); color: var(--inchiostro-2); margin: 4px 0 20px; }
+
+/* Fasi: sono legenda e filtro insieme */
+.fasi { display: grid; gap: 2px; margin: 0 0 8px; }
+.fase {
+  display: grid; grid-template-columns: 22px 3.2ch 1fr; align-items: center; gap: 10px;
+  width: 100%; padding: 6px 8px; border: 0; background: none; text-align: left; cursor: pointer; border-radius: 6px;
+}
+.fase:hover { background: var(--velo); }
+.fase .disco { width: 18px; height: 18px; border-radius: 50%; background: var(--c); border: 2px solid var(--c); }
+.fase .num { font-weight: 700; font-size: 25px; line-height: 1; text-align: right; }
+.fase .nome { font-size: 17px; }
+.fase[aria-pressed="false"] { color: var(--inchiostro-3); }
+.fase[aria-pressed="false"] .disco { background: transparent; }
+.legenda { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--inchiostro-2); margin: 4px 0 0 8px; }
+.legenda svg { flex: none; }
+
+section { margin-top: 22px; }
+h2 { font: italic 500 19px/1.2 var(--serif); margin: 0 0 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 1px solid var(--riga); background: var(--carta); border-radius: 999px;
+  padding: 3px 11px 4px; font-size: 14.5px; cursor: pointer;
+}
+.chip .n { color: var(--inchiostro-2); margin-left: 3px; }
+.chip[aria-pressed="true"] { border-color: var(--inchiostro); background: var(--velo); }
+.chip[aria-pressed="false"] { color: var(--inchiostro-3); text-decoration: line-through; text-decoration-thickness: 1px; }
+.filtri-riga + .filtri-riga { margin-top: 12px; }
+.filtri-riga h3 { font: 500 13.5px/1.2 var(--sans); color: var(--inchiostro-2); margin: 0 0 6px; }
+
+/* Torino per circoscrizione */
+.tab-circ { width: 100%; border-collapse: collapse; font-size: 15px; }
+.tab-circ th, .tab-circ td { padding: 0; border-top: 1px solid var(--riga); }
+.tab-circ thead th { border-top: 0; font-weight: 500; font-size: 13px; color: var(--inchiostro-2); text-align: right; padding: 0 0 4px; }
+.tab-circ thead th:first-child { text-align: left; }
+.tab-circ td { text-align: right; width: 3.4ch; font-weight: 700; color: var(--c); }
+.tab-circ td.zero { color: var(--riga); font-weight: 400; }
+.tab-circ tbody th { text-align: left; font-weight: 400; }
+.tab-circ button {
+  display: grid; grid-template-columns: 1.6ch 1fr; gap: 8px; align-items: baseline; width: 100%;
+  border: 0; background: none; padding: 5px 4px 5px 0; text-align: left; cursor: pointer;
+}
+.tab-circ button:hover { background: var(--velo); }
+.tab-circ .ncirc { font: italic 600 19px/1 var(--serif); }
+.tab-circ small { font-size: 13px; color: var(--inchiostro-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.tab-circ tr.da-precisare th { font-size: 13.5px; color: var(--inchiostro-2); padding: 5px 0; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--c); }
+
+/* Elenco dei luoghi */
+.cerca {
+  width: 100%; font: inherit; font-size: 15px; padding: 7px 10px; border: 1px solid var(--riga); border-radius: 6px;
+  background: var(--carta); margin-bottom: 6px;
+}
+.cerca:focus { outline: 2px solid var(--inchiostro); outline-offset: 0; }
+.luoghi { list-style: none; margin: 0; padding: 0; }
+.luoghi li + li { border-top: 1px solid var(--riga); }
+.luogo {
+  display: grid; grid-template-columns: 1fr auto; gap: 1px 10px; width: 100%;
+  border: 0; background: none; text-align: left; padding: 7px 4px; cursor: pointer;
+}
+.luogo:hover { background: var(--velo); }
+.luogo .nome { font-size: 15.5px; line-height: 1.25; }
+.luogo .dove { grid-column: 1; font-size: 13px; color: var(--inchiostro-2); }
+.luogo .conti { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 8px; align-self: center; font-weight: 700; font-size: 15px; }
+.luogo .conti span { color: var(--c); display: inline-flex; align-items: center; gap: 3px; }
+.luogo .conti span::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.vuoto { color: var(--inchiostro-2); font-size: 14.5px; margin: 6px 0; }
+.nota { font-size: 14px; color: var(--inchiostro-2); margin: 6px 0 0; }
+.nota ul { margin: 4px 0 0; padding-left: 18px; }
+.piede { margin-top: 26px; padding-top: 12px; border-top: 1px solid var(--riga); font-size: 13px; color: var(--inchiostro-2); }
+.piede p { margin: 0 0 4px; }
+
+/* Controllo della vista, sulla mappa */
+.vista {
+  position: absolute; top: 12px; right: 12px; z-index: 800; display: flex;
+  background: var(--carta); border: 1px solid var(--inchiostro); border-radius: 8px; overflow: hidden;
+  box-shadow: 0 1px 3px rgba(28, 36, 49, .18);
+}
+.vista button { border: 0; background: none; padding: 7px 14px; font-size: 15px; cursor: pointer; }
+.vista button + button { border-left: 1px solid var(--inchiostro); }
+.vista button[aria-pressed="true"] { background: var(--inchiostro); color: var(--carta); }
+
+/* Avvisi (caricamento, errori, primo avvio) */
+.avviso {
+  position: absolute; z-index: 900; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(460px, calc(100% - 32px)); background: var(--carta); border: 1px solid var(--inchiostro);
+  border-radius: 10px; padding: 20px 22px; box-shadow: 0 6px 24px rgba(28, 36, 49, .18);
+}
+.avviso h2 { font-size: 22px; font-style: normal; font-weight: 600; margin-bottom: 6px; }
+.avviso p { margin: 0 0 10px; font-size: 15.5px; }
+.avviso code { font-size: 13px; background: var(--velo); padding: 1px 4px; border-radius: 3px; word-break: break-all; }
+.avviso .azione {
+  display: inline-block; border: 1px solid var(--inchiostro); background: var(--inchiostro); color: var(--carta);
+  border-radius: 6px; padding: 7px 14px; cursor: pointer; font-size: 15px;
+}
+.avviso.piccolo { top: auto; bottom: 18px; transform: translateX(-50%); padding: 10px 16px; width: auto; }
+.avviso.piccolo p { margin: 0; }
+.trascina { position: absolute; inset: 0; z-index: 950; background: rgba(28, 36, 49, .55); color: #fff;
+  display: grid; place-items: center; font: italic 500 26px var(--serif); pointer-events: none; }
+
+/* Elementi sulla mappa */
+.leaflet-container { font-family: var(--sans); font-size: 14px; }
+.ciambella { background: none; border: 0; }
+.ciambella svg { display: block; overflow: visible; filter: drop-shadow(0 1px 1.5px rgba(28, 36, 49, .35)); }
+.ciambella text { font-family: var(--sans); font-weight: 700; fill: var(--inchiostro); }
+.ciambella.torino-tutta svg { cursor: zoom-in; }
+.nome-diocesi {
+  font: italic 500 17px/1.1 var(--serif); color: var(--inchiostro); text-align: center; white-space: nowrap;
+  text-shadow: 0 0 2px #fff, 0 0 4px #fff, 0 0 8px #fff;
+}
+.nome-diocesi b { font-style: normal; font-weight: 600; font-size: 21px; }
+.etichetta-circ { text-align: center; line-height: 1; text-shadow: 0 0 2px #fff, 0 0 4px #fff, 0 0 7px #fff; white-space: nowrap; }
+.etichetta-circ b { display: block; font: italic 600 34px/1 var(--serif); color: var(--inchiostro); opacity: .8; }
+.etichetta-circ span { font-size: 13px; color: var(--inchiostro-2); }
+.leaflet-tooltip.tt { font-family: var(--sans); font-size: 14px; border-color: var(--riga); box-shadow: 0 1px 4px rgba(28, 36, 49, .2); }
+.leaflet-popup-content-wrapper { border-radius: 8px; }
+.leaflet-popup-content { margin: 12px 16px 12px 14px; min-width: 190px; }
+.scheda h3 { font: 600 19px/1.15 var(--serif); margin: 0 0 2px; }
+.scheda h3 + h3 { margin-top: 4px; }
+.scheda .dove { color: var(--inchiostro-2); margin: 0 0 8px; font-size: 14px; }
+.scheda ul { list-style: none; margin: 0; padding: 0; }
+.scheda li { display: grid; grid-template-columns: 12px 2.4ch 1fr; gap: 6px; align-items: baseline; padding: 2px 0; font-size: 15px; }
+.scheda li .dot { transform: translateY(-1px); }
+.scheda li b { text-align: right; }
+.scheda li small { grid-column: 3; color: var(--inchiostro-2); font-size: 13.5px; }
+.scheda .nota { font-size: 13px; margin-top: 8px; }
+
+@media (max-width: 860px) {
+  .app { display: flex; flex-direction: column; height: auto; }
+  .mappa-box { order: -1; height: 62vh; min-height: 340px; }
+  .pannello { border-right: 0; border-top: 1px solid var(--riga); overflow: visible; }
+  h1 { font-size: 27px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="pannello" aria-label="Dati e filtri">
+    <header>
+      <h1>Ministeri istituiti</h1>
+      <p class="sottotitolo">Arcidiocesi di Torino e Diocesi di Susa</p>
+    </header>
+
+    <div class="fasi" id="fasi" role="group" aria-label="Mostra o nascondi per fase"></div>
+    <p class="legenda">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="10" fill="#fff" stroke="#1c2431" stroke-width="1.2" stroke-dasharray="2.5 2.5"/></svg>
+      Il numero è il totale del luogo. Bordo tratteggiato: posizione indicativa.
+    </p>
+
+    <section id="sez-filtri" aria-labelledby="h-filtri" hidden>
+      <h2 id="h-filtri">Filtra</h2>
+      <div class="filtri-riga"><h3>Ministero</h3><div class="chips" id="ministeri"></div></div>
+      <div class="filtri-riga"><h3>Diocesi</h3><div class="chips" id="diocesi"></div></div>
+      <div class="filtri-riga" id="riga-anni" hidden><h3>Anno di istituzione</h3><div class="chips" id="anni"></div></div>
+    </section>
+
+    <section aria-labelledby="h-torino">
+      <h2 id="h-torino">Torino per circoscrizione</h2>
+      <table class="tab-circ" id="tab-circ"></table>
+    </section>
+
+    <section aria-labelledby="h-luoghi">
+      <h2 id="h-luoghi">Parrocchie e comunità</h2>
+      <label class="sr" for="cerca">Cerca una parrocchia o un comune</label>
+      <input class="cerca" id="cerca" type="search" placeholder="Cerca parrocchia o comune" autocomplete="off">
+      <ul class="luoghi" id="luoghi"></ul>
+    </section>
+
+    <section id="sez-senza-luogo" hidden aria-labelledby="h-senza">
+      <h2 id="h-senza">Senza luogo</h2>
+      <div class="nota" id="senza-luogo"></div>
+    </section>
+
+    <footer class="piede" id="piede"></footer>
+  </aside>
+
+  <main class="mappa-box">
+    <div id="mappa" aria-label="Mappa"></div>
+    <div class="vista" role="group" aria-label="Vista della mappa">
+      <button type="button" data-vista="diocesi" aria-pressed="true">Diocesi</button>
+      <button type="button" data-vista="torino" aria-pressed="false">Torino città</button>
+    </div>
+    <div class="avviso" id="avviso" role="status" hidden></div>
+  </main>
+</div>
+<input type="file" id="file" accept=".csv,.xlsx,.xls,.ods" hidden>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script>
+'use strict';
+
+/* ======================================================================
+   IMPOSTAZIONI
+   ====================================================================== */
+const CONFIG = {
+  // Link "Pubblica sul web" della scheda Mappa, formato CSV. Esempio:
+  // 'https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=123&single=true&output=csv'
+  URL_FOGLIO_CSV: '',
+  ZOOM_DETTAGLIO: 12,          // da questo zoom in su: un segnaposto per parrocchia
+  ETICHETTE_DIOCESI: { Torino: [45.318, 7.335], Susa: [45.012, 6.84] },
+  URL_SHEETJS: 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+};
+
+const COLORI = { istituito: '#9e1b32', formazione: '#6a4c9c', candidato: '#2f8a5a' };
+const INCHIOSTRO = '#1c2431';
+
+const FASI = [
+  { id: 'istituito', nome: 'Istituiti', uno: 'istituito', tanti: 'istituiti' },
+  { id: 'formazione', nome: 'In formazione', uno: 'in formazione', tanti: 'in formazione' },
+  { id: 'candidato', nome: 'Candidati', uno: 'candidato', tanti: 'candidati' },
+];
+const MINISTERI = [
+  { id: 'lettore', nome: 'Lettori', uno: 'lettore', tanti: 'lettori', regola: /LETT/ },
+  { id: 'accolito', nome: 'Accoliti', uno: 'accolito', tanti: 'accoliti', regola: /ACCOL/ },
+  { id: 'catechista', nome: 'Catechisti', uno: 'catechista', tanti: 'catechisti', regola: /CATECH/ },
+  { id: 'carita', nome: 'Carità e azione sociale', uno: 'referente carità', tanti: 'referenti carità', regola: /CARIT/ },
+  { id: 'altro', nome: 'Da definire', uno: 'da definire', tanti: 'da definire', regola: null },
+];
+const DIOCESI = [
+  { id: 'torino', nome: 'Torino', regola: /TORINO/ },
+  { id: 'susa', nome: 'Susa', regola: /SUSA/ },
+];
+
+/* ======================================================================
+   STATO
+   ====================================================================== */
+const stato = {
+  righe: [],
+  scartate: 0,
+  fasi: new Set(FASI.map(f => f.id)),
+  ministeri: new Set(MINISTERI.map(m => m.id)),
+  diocesi: new Set(DIOCESI.map(d => d.id)),
+  anniEsclusi: new Set(),
+  cerca: '',
+  fonte: '',
+  daAprire: null,
+  avvisi: [],
+  livello: null,
+  scala: null,
+};
+const geo = { comuni: new Map(), diocesani: [], circoscrizioni: [], torino: null, limitiDiocesi: null, limitiTorino: null };
+const $ = id => document.getElementById(id);
+
+/* ======================================================================
+   MAPPA DI BASE
+   ====================================================================== */
+const mappa = L.map('mappa', { zoomSnap: 0.5, zoomDelta: 0.5, minZoom: 8, maxZoom: 17 });
+mappa.attributionControl.setPrefix('<a href="https://leafletjs.com">Leaflet</a>');
+mappa.createPane('territorio').style.zIndex = 350;
+mappa.createPane('circoscrizioni').style.zIndex = 360;
+for (const [nome, z] of [['etichette', 420], ['nomi', 430]]) {
+  const p = mappa.createPane(nome);
+  p.style.zIndex = z;
+  p.style.pointerEvents = 'none';
+}
+const ATTRIBUZIONE = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
+  { subdomains: 'abcd', maxZoom: 19, attribution: ATTRIBUZIONE }).addTo(mappa);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png',
+  { subdomains: 'abcd', maxZoom: 19, pane: 'etichette' }).addTo(mappa);
+
+const strati = {
+  segnaposti: L.layerGroup().addTo(mappa),
+  circoscrizioni: null,
+  etichetteCirc: L.layerGroup(),
+  nomiDiocesi: L.layerGroup(),
+};
+const segnaposti = new Map();   // chiave del gruppo -> marker
+
+/* ======================================================================
+   TESTI E NUMERI
+   ====================================================================== */
+const SANTI = new Set(['SAN', 'SANTA', 'SANTO', 'SANT', 'SS', 'S']);
+const VUOTE = new Set(['DI', 'DA', 'DEL', 'DELLA', 'DEI', 'DELLE', 'D', 'AL', 'IN', 'E']);
+
+/** Chiave di confronto per i nomi: "S. Mauro To.se" e "San Mauro Torinese" coincidono. */
+function chiaveNome(s) {
+  let t = String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+  t = t.replace(/\bTO\s*\.?\s*SE\b/g, ' TORINESE ').replace(/\b(C|CAN)\s*\.?\s*SE\b/g, ' CANAVESE ');
+  return t.replace(/[^A-Z0-9]+/g, ' ').trim().split(' ')
+    .filter(w => w && !VUOTE.has(w)).map(w => SANTI.has(w) ? 'S' : w).join(' ');
+}
+
+/** Rende leggibili i nomi scritti tutto in maiuscolo ("SS. BERNARDO E BRIGIDA"). */
+function nomeLeggibile(s) {
+  s = String(s ?? '').replace(/\s+/g, ' ').trim();
+  if (!s || s !== s.toUpperCase()) return s;
+  const minuscole = new Set(['e', 'di', 'da', 'del', 'della', 'dei', 'delle', 'in', 'al', 'a', 'per']);
+  const accenti = { a: 'à', e: 'è', i: 'ì', o: 'ò', u: 'ù' };
+  return s.split(' ').map((w, i) => {
+    if (/^(?:[A-Z]{1,2}\.)+$/.test(w)) return w;
+    const l = w.toLowerCase();
+    if (i > 0 && minuscole.has(l)) return l;
+    return l.charAt(0).toUpperCase() + l.slice(1);
+  }).join(' ')
+    .replace(/([.'])([a-zà-ù])(?=[a-zà-ù])/g, (m, p, c) => p + c.toUpperCase())
+    .replace(/([aeiou])'(?=$|[\s,.;)])/g, (m, v) => accenti[v]);
+}
+
+function numero(v) {
+  if (typeof v === 'number') return v;
+  const s = String(v ?? '').trim();
+  if (/^-?\d+,\d+$/.test(s)) return parseFloat(s.replace(',', '.'));
+  if (/^-?\d+(\.\d+)?$/.test(s)) return parseFloat(s);
+  return NaN;
+}
+
+function leggiCoordinate(a, b) {
+  let lat = numero(a), lon = numero(b);
+  if (isNaN(lat) || isNaN(lon)) {
+    const coppia = String(a ?? '').match(/(-?\d{1,2}\.\d+)\s*[,;]\s*(-?\d{1,3}\.\d+)/);
+    if (!coppia) return null;
+    lat = parseFloat(coppia[1]);
+    lon = parseFloat(coppia[2]);
+  }
+  if (lat < 43.5 || lat > 46.5 || lon < 6 || lon > 9.5) return null;
+  return [lat, lon];
+}
+
+function leggiFase(v) {
+  const s = String(v ?? '').toUpperCase();
+  if (/FORMAZ/.test(s)) return { fase: 'formazione', anno: null };
+  if (/CANDID/.test(s)) return { fase: 'candidato', anno: null };
+  if (/\bMI\b|ISTITUIT/.test(s)) {
+    const a = s.match(/\b(?:19|20)\d{2}\b/);
+    return { fase: 'istituito', anno: a ? a[0] : null };
+  }
+  return null;
+}
+
+const plurale = (n, voce) => n + ' ' + (n === 1 ? voce.uno : voce.tanti);
+const faseDi = id => FASI.find(f => f.id === id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* ======================================================================
+   GEOGRAFIA
+   ====================================================================== */
+function riquadro(geometria) {
+  let s = 90, o = 180, n = -90, e = -180;
+  const poligoni = geometria.type === 'Polygon' ? [geometria.coordinates] : geometria.coordinates;
+  for (const pol of poligoni) for (const [x, y] of pol[0]) {
+    if (y < s) s = y; if (y > n) n = y; if (x < o) o = x; if (x > e) e = x;
+  }
+  return [s, o, n, e];
+}
+
+function dentroAnello(lat, lon, anello) {
+  let dentro = false;
+  for (let i = 0, j = anello.length - 1; i < anello.length; j = i++) {
+    const [xi, yi] = anello[i], [xj, yj] = anello[j];
+    if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) dentro = !dentro;
+  }
+  return dentro;
+}
+
+function dentro(pos, luogo) {
+  const [lat, lon] = pos, [s, o, n, e] = luogo.riquadro;
+  if (lat < s || lat > n || lon < o || lon > e) return false;
+  const g = luogo.feature.geometry;
+  const poligoni = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+  return poligoni.some(pol => dentroAnello(lat, lon, pol[0]) && !pol.slice(1).some(buco => dentroAnello(lat, lon, buco)));
+}
+
+function preparaGeografia(territorio, circoscrizioni, piemonte) {
+  for (const [nome, lat, lon] of piemonte) {
+    const k = chiaveNome(nome);
+    if (!geo.comuni.has(k)) geo.comuni.set(k, { nome, chiave: k, lat, lon, diocesi: null });
+  }
+  for (const f of territorio.features) {
+    const p = f.properties;
+    if (p.tipo !== 'comune') continue;
+    const k = chiaveNome(p.nome);
+    const c = Object.assign(geo.comuni.get(k) || {}, {
+      nome: p.nome, chiave: k, lat: p.lp[0], lon: p.lp[1],
+      diocesi: p.diocesi.toLowerCase(), feature: f, riquadro: riquadro(f.geometry),
+    });
+    geo.comuni.set(k, c);
+    geo.diocesani.push(c);
+  }
+  geo.torino = geo.comuni.get('TORINO');
+  geo.circoscrizioni = circoscrizioni.features.map(f => ({
+    numero: f.properties.numero, nome: f.properties.nome, lat: f.properties.lp[0], lon: f.properties.lp[1],
+    feature: f, riquadro: riquadro(f.geometry),
+  }));
+}
+
+function trovaComune(testo) {
+  const k = chiaveNome(testo);
+  if (!k) return null;
+  if (geo.comuni.has(k)) return geo.comuni.get(k);
+  for (const gruppo of [geo.diocesani, [...geo.comuni.values()]]) {
+    const candidati = gruppo.filter(c => c.chiave.startsWith(k + ' '));
+    if (candidati.length === 1) return candidati[0];
+    if (candidati.length > 1) return null;
+  }
+  return null;
+}
+
+const comuneDelPunto = pos => geo.diocesani.find(c => dentro(pos, c)) || null;
+const circoscrizioneDelPunto = pos => geo.circoscrizioni.find(c => dentro(pos, c)) || null;
+
+function disegnaTerritorio(territorio, circoscrizioni) {
+  L.geoJSON(territorio, {
+    pane: 'territorio',
+    filter: f => f.properties.tipo === 'comune',
+    style: f => {
+      const t = f.properties.diocesi === 'Torino';
+      return { color: t ? '#b99a26' : '#5f8f7e', weight: 0.6, opacity: 0.55,
+        fillColor: t ? '#f2cf3a' : '#8fb9a8', fillOpacity: t ? 0.24 : 0.3 };
+    },
+    onEachFeature: (f, l) => l.bindTooltip(esc(f.properties.nome), { sticky: true, className: 'tt', direction: 'top', offset: [0, -6] }),
+    attribution: 'Confini: ISTAT, openpolis (CC BY 4.0)',
+  }).addTo(mappa);
+
+  const contorni = L.geoJSON(territorio, {
+    pane: 'territorio', interactive: false,
+    filter: f => f.properties.tipo === 'diocesi',
+    style: { color: INCHIOSTRO, weight: 2.4, opacity: 0.9, fill: false },
+  }).addTo(mappa);
+  geo.limitiDiocesi = contorni.getBounds();
+
+  for (const [nome, pos] of Object.entries(CONFIG.ETICHETTE_DIOCESI)) {
+    const titolo = nome === 'Torino' ? 'Arcidiocesi' : 'Diocesi';
+    L.marker(pos, { pane: 'nomi', interactive: false, keyboard: false,
+      icon: L.divIcon({ className: 'nome-diocesi', html: `${titolo}<br>di <b>${nome}</b>`, iconSize: [170, 44], iconAnchor: [85, 22] }),
+    }).addTo(strati.nomiDiocesi);
+  }
+
+  strati.circoscrizioni = L.geoJSON(circoscrizioni, {
+    pane: 'circoscrizioni',
+    style: { color: INCHIOSTRO, weight: 1.8, opacity: 0.8, fillColor: INCHIOSTRO, fillOpacity: 0.03 },
+    onEachFeature: (f, l) => l.on('click', ev => {
+      L.popup({ maxWidth: 300 }).setLatLng(ev.latlng).setContent(schedaCircoscrizione(f.properties.numero)).openOn(mappa);
+    }),
+  });
+  geo.limitiTorino = strati.circoscrizioni.getBounds();
+}
+
+/* ======================================================================
+   DATI
+   ====================================================================== */
+function normalizzaRiga(r) {
+  const f = leggiFase(r.FASE);
+  if (!f) {
+    if ([r.MINISTERO, r.TERRITORIO, r.COMUNE].some(v => String(v ?? '').trim())) stato.scartate++;
+    return null;
+  }
+  const testoMinistero = String(r.MINISTERO ?? '').toUpperCase();
+  const ministero = (MINISTERI.find(m => m.regola && m.regola.test(testoMinistero)) || MINISTERI.at(-1)).id;
+  const territorio = nomeLeggibile(r.TERRITORIO);
+  const comuneTesto = String(r.COMUNE ?? '').trim();
+  let comune = trovaComune(comuneTesto);
+  let posizione = leggiCoordinate(r.LAT, r.LON);
+  let precisa = !!posizione && !/^\s*≈/.test(String(r.VERIFICA ?? ''));
+  if (posizione && !comune) comune = comuneDelPunto(posizione);
+  if (!precisa && comune) posizione = [comune.lat, comune.lon];
+  const testoDiocesi = String(r.DIOCESI ?? '').toUpperCase();
+  const diocesi = (DIOCESI.find(d => d.regola.test(testoDiocesi)) || {}).id || (comune && comune.diocesi) || null;
+  const circ = precisa && comune === geo.torino ? circoscrizioneDelPunto(posizione) : null;
+  return { ...f, ministero, territorio, comuneTesto, comune, posizione, precisa, diocesi, circ };
+}
+
+function caricaRighe(oggetti, fonte) {
+  stato.scartate = 0;
+  stato.avvisi = [];
+  // Se manca il titolo COMUNE ma dopo TERRITORIO c'è una colonna senza titolo, è quella dei comuni
+  const intestazioni = Object.keys(oggetti[0] || {});
+  const maiuscole = intestazioni.map(k => String(k).replace(/^\ufeff/, '').trim().toUpperCase());
+  let colonnaComune = null;
+  if (!maiuscole.includes('COMUNE')) {
+    const dopo = intestazioni[maiuscole.indexOf('TERRITORIO') + 1];
+    if (maiuscole.includes('TERRITORIO') && dopo !== undefined && /^(__EMPTY\w*|_\d*|)$/.test(String(dopo).trim())) {
+      colonnaComune = dopo;
+      stato.avvisi.push('La colonna dopo TERRITORIO non ha titolo: la considero COMUNE.');
+    }
+  }
+  const righe = oggetti.map(o => {
+    const r = {};
+    for (const [k, v] of Object.entries(o)) r[String(k).replace(/^\ufeff/, '').trim().toUpperCase()] = v;
+    if (colonnaComune !== null) r.COMUNE = o[colonnaComune];
+    return r;
+  });
+  if (!righe.length || !righe.some(r => 'FASE' in r)) {
+    throw new Error('Nei dati non trovo la colonna FASE. Controlla di aver pubblicato la scheda "Mappa" in formato CSV.');
+  }
+  stato.righe = righe.map(normalizzaRiga).filter(Boolean);
+  stato.fonte = fonte;
+  const anni = [...new Set(stato.righe.filter(r => r.fase === 'istituito' && r.anno).map(r => r.anno))];
+  stato.anniEsclusi = new Set([...stato.anniEsclusi].filter(a => anni.includes(a)));
+  nascondiAvviso();
+  aggiorna();
+}
+
+async function caricaDaFoglio(url) {
+  mostraAvviso('<p>Leggo il foglio…</p>', true);
+  const risposta = await fetch(url);
+  if (!risposta.ok) throw new Error(`Il foglio non risponde (errore ${risposta.status}). Controlla che la scheda "Mappa" sia ancora pubblicata sul web.`);
+  const testo = (await risposta.text()).replace(/^\ufeff/, '');
+  if (/^\s*</.test(testo)) throw new Error('Il link restituisce una pagina web, non un CSV: in "Pubblica sul web" scegli il formato "Valori separati da virgola (.csv)".');
+  const esito = Papa.parse(testo, { header: true, skipEmptyLines: 'greedy' });
+  const ora = new Date().toLocaleString('it-IT', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  caricaRighe(esito.data, `Dati dal foglio Google, letti il ${ora}.`);
+}
+
+async function caricaDaFile(file) {
+  const nome = file.name.toLowerCase();
+  let oggetti;
+  if (nome.endsWith('.csv')) {
+    oggetti = Papa.parse(await file.text(), { header: true, skipEmptyLines: 'greedy' }).data;
+  } else {
+    if (!window.XLSX) await caricaScript(CONFIG.URL_SHEETJS);
+    const cartella = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const nomeFoglio = cartella.SheetNames.find(n => /^(elenco|mappa)$/i.test(n)) || cartella.SheetNames[0];
+    oggetti = XLSX.utils.sheet_to_json(cartella.Sheets[nomeFoglio], { defval: '' });
+  }
+  caricaRighe(oggetti, `Anteprima dal file «${file.name}»: i dati restano su questo computer.`);
+}
+
+function caricaScript(src) {
+  return new Promise((ok, ko) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = ok;
+    s.onerror = () => ko(new Error('Non riesco a caricare il lettore di file Excel: salva il file come CSV e riprova.'));
+    document.head.append(s);
+  });
+}
+
+/* ======================================================================
+   FILTRI E RAGGRUPPAMENTI
+   ====================================================================== */
+function passa(r, salta) {
+  if (salta !== 'fase' && !stato.fasi.has(r.fase)) return false;
+  if (salta !== 'ministero' && !stato.ministeri.has(r.ministero)) return false;
+  if (salta !== 'diocesi' && r.diocesi && !stato.diocesi.has(r.diocesi)) return false;
+  if (salta !== 'anno' && r.fase === 'istituito' && r.anno && stato.anniEsclusi.has(r.anno)) return false;
+  return true;
+}
+
+function nuoviConti() {
+  return Object.fromEntries(FASI.map(f => [f.id, 0]));
+}
+
+function raggruppa(righe, livello) {
+  const gruppi = new Map();
+  for (const r of righe) {
+    if (!r.posizione) continue;
+    const perComune = livello === 'comune' && r.comune;
+    const chiave = perComune ? 'c:' + r.comune.nome : 'p:' + r.posizione.map(v => v.toFixed(4)).join(',');
+    let g = gruppi.get(chiave);
+    if (!g) {
+      g = { chiave, livello, pos: perComune ? [r.comune.lat, r.comune.lon] : r.posizione, precisa: true,
+        comune: r.comune, circ: null, righe: [], conti: nuoviConti(), totale: 0, nomi: new Map() };
+      gruppi.set(chiave, g);
+    }
+    g.righe.push(r);
+    g.conti[r.fase]++;
+    g.totale++;
+    if (!r.precisa) g.precisa = false;
+    if (r.circ) g.circ = r.circ;
+    const nome = r.territorio || 'Parrocchia non indicata';
+    const kn = chiaveNome(nome);
+    if (!g.nomi.has(kn)) g.nomi.set(kn, nome);
+  }
+  return [...gruppi.values()];
+}
+
+function nomeGruppo(g) {
+  if (g.livello === 'comune') return g.comune ? g.comune.nome : [...g.nomi.values()][0];
+  const nomi = [...g.nomi.values()];
+  return nomi.length <= 2 ? nomi.join('; ') : `${nomi[0]} e altre ${nomi.length - 1}`;
+}
+
+function doveGruppo(g) {
+  const parti = [];
+  if (g.comune) parti.push(g.comune.nome);
+  if (g.circ) parti.push('circoscrizione ' + g.circ.numero);
+  return parti.join(', ');
+}
+
+function riassunto(conti) {
+  return FASI.filter(f => conti[f.id]).map(f => plurale(conti[f.id], f)).join(', ');
+}
+
+function dettaglioMinisteri(righe) {
+  return MINISTERI.map(m => [m, righe.filter(r => r.ministero === m.id).length])
+    .filter(([, n]) => n).map(([m, n]) => plurale(n, m)).join(', ');
+}
+
+/* ======================================================================
+   SEGNAPOSTI
+   ====================================================================== */
+function scalaSegnaposti() {
+  const z = mappa.getZoom();
+  return z < 9 ? 0.62 : z < 9.5 ? 0.8 : 1;
+}
+
+function svgCiambella(conti, totale, tratteggiata) {
+  const r = Math.min(38, 13 + 4 * Math.sqrt(totale)) * scalaSegnaposti();
+  const lato = Math.round(r * 2 + 6), c = lato / 2;
+  const spessore = Math.max(5, r * 0.38), rm = r - spessore / 2, giro = 2 * Math.PI * rm;
+  const presenti = FASI.filter(f => conti[f.id] > 0);
+  const stacco = presenti.length > 1 ? 1.6 : 0;
+  let inizio = 0, archi = '';
+  for (const f of presenti) {
+    const lung = giro * conti[f.id] / totale;
+    const visibile = Math.max(lung - stacco, 0.8);
+    archi += `<circle cx="${c}" cy="${c}" r="${rm.toFixed(2)}" fill="none" stroke="${COLORI[f.id]}" stroke-width="${spessore.toFixed(2)}"
+      stroke-dasharray="${visibile.toFixed(2)} ${(giro - visibile).toFixed(2)}" stroke-dashoffset="${(-inizio).toFixed(2)}" transform="rotate(-90 ${c} ${c})"/>`;
+    inizio += lung;
+  }
+  const bordo = tratteggiata
+    ? `<circle cx="${c}" cy="${c}" r="${(r + 1.6).toFixed(2)}" fill="none" stroke="${INCHIOSTRO}" stroke-width="1.2" stroke-dasharray="2.5 2.5"/>` : '';
+  const corpo = Math.max(9, Math.round(r * 0.62));
+  return { lato, html: `<svg width="${lato}" height="${lato}" viewBox="0 0 ${lato} ${lato}" aria-hidden="true">
+    <circle cx="${c}" cy="${c}" r="${r.toFixed(2)}" fill="#fff"/>${archi}${bordo}
+    <text x="${c}" y="${c}" dy=".35em" text-anchor="middle" font-size="${corpo}">${totale}</text></svg>` };
+}
+
+function disegnaSegnaposti(visibili) {
+  const livello = stato.livello;
+  strati.segnaposti.clearLayers();
+  segnaposti.clear();
+  const gruppi = raggruppa(visibili, livello).sort((a, b) => b.totale - a.totale);
+  for (const g of gruppi) {
+    const tuttaTorino = livello === 'comune' && g.comune === geo.torino;
+    const { lato, html } = svgCiambella(g.conti, g.totale, !g.precisa && livello === 'luogo');
+    const nome = nomeGruppo(g);
+    const m = L.marker(g.pos, {
+      icon: L.divIcon({ className: 'ciambella' + (tuttaTorino ? ' torino-tutta' : ''), html, iconSize: [lato, lato], iconAnchor: [lato / 2, lato / 2] }),
+      title: `${nome}: ${riassunto(g.conti)}`,
+      alt: nome,
+      riseOnHover: true,
+      zIndexOffset: 1000 - lato * 5,
+    });
+    if (livello === 'comune') {
+      m.bindTooltip(`<b>${esc(nome)}</b><br>${esc(riassunto(g.conti))}` + (tuttaTorino ? '<br><i>Clic per la mappa della città</i>' : ''),
+        { className: 'tt', direction: 'top', offset: [0, -lato / 2] });
+      m.on('click', () => tuttaTorino ? vaiA('torino') : vola(g.pos, Math.max(CONFIG.ZOOM_DETTAGLIO, mappa.getZoom() + 2)));
+    } else {
+      m.bindPopup(() => schedaLuogo(g), { maxWidth: 320 });
+    }
+    m.addTo(strati.segnaposti);
+    segnaposti.set(g.chiave, m);
+  }
+  apriInSospeso();
+}
+
+function schedaLuogo(g) {
+  const titoli = [...g.nomi.values()].map(n => `<h3>${esc(n)}</h3>`).join('');
+  const righe = FASI.filter(f => g.conti[f.id]).map(f => {
+    const sue = g.righe.filter(r => r.fase === f.id);
+    const anni = f.id === 'istituito' ? [...new Set(sue.map(r => r.anno).filter(Boolean))].sort() : [];
+    const quando = anni.length ? ` nel ${anni.join(' e ')}` : '';
+    return `<li><span class="dot" style="--c:${COLORI[f.id]}"></span><b>${g.conti[f.id]}</b>
+      <span>${esc((g.conti[f.id] === 1 ? f.uno : f.tanti) + quando)}</span><small>${esc(dettaglioMinisteri(sue))}</small></li>`;
+  }).join('');
+  const nota = g.precisa ? '' : '<p class="nota">Posizione indicativa: centro del comune. Nel foglio usa «Trova coordinate mancanti».</p>';
+  return `<div class="scheda">${titoli}<p class="dove">${esc(doveGruppo(g))}</p><ul>${righe}</ul>${nota}</div>`;
+}
+
+function schedaCircoscrizione(numero) {
+  const c = geo.circoscrizioni.find(x => x.numero === numero);
+  const sue = stato.righe.filter(r => passa(r) && r.circ === c);
+  const conti = nuoviConti();
+  sue.forEach(r => conti[r.fase]++);
+  const luoghi = new Set(sue.map(r => r.posizione.join())).size;
+  const righe = FASI.filter(f => conti[f.id]).map(f =>
+    `<li><span class="dot" style="--c:${COLORI[f.id]}"></span><b>${conti[f.id]}</b><span>${esc(conti[f.id] === 1 ? f.uno : f.tanti)}</span>
+     <small>${esc(dettaglioMinisteri(sue.filter(r => r.fase === f.id)))}</small></li>`).join('');
+  return `<div class="scheda"><h3>Circoscrizione ${numero}</h3><p class="dove">${esc(c.nome)}</p>` +
+    (sue.length ? `<ul>${righe}</ul><p class="nota">${luoghi === 1 ? 'Un luogo' : luoghi + ' luoghi'} sulla mappa.</p>` : '<p class="nota">Nessuno con i filtri attuali.</p>') + '</div>';
+}
+
+/* ======================================================================
+   PANNELLO
+   ====================================================================== */
+function disegnaFasi() {
+  const conti = nuoviConti();
+  stato.righe.filter(r => passa(r, 'fase')).forEach(r => conti[r.fase]++);
+  $('fasi').innerHTML = FASI.map(f => `
+    <button type="button" class="fase" data-fase="${f.id}" aria-pressed="${stato.fasi.has(f.id)}" style="--c:${COLORI[f.id]}">
+      <span class="disco"></span><span class="num">${conti[f.id]}</span><span class="nome">${f.nome}</span>
+    </button>`).join('');
+}
+
+function disegnaChips(contenitore, voci, attivi, salta, campo) {
+  const conti = {};
+  stato.righe.filter(r => passa(r, salta)).forEach(r => { conti[r[campo]] = (conti[r[campo]] || 0) + 1; });
+  const presenti = voci.filter(v => conti[v.id] || !attivi(v.id));
+  $(contenitore).innerHTML = presenti.map(v => `
+    <button type="button" class="chip" data-${campo}="${v.id}" aria-pressed="${attivi(v.id)}">${esc(v.nome)}<span class="n">${conti[v.id] || 0}</span></button>`).join('');
+}
+
+function disegnaFiltri() {
+  $('sez-filtri').hidden = !stato.righe.length;
+  disegnaChips('ministeri', MINISTERI, id => stato.ministeri.has(id), 'ministero', 'ministero');
+  disegnaChips('diocesi', DIOCESI, id => stato.diocesi.has(id), 'diocesi', 'diocesi');
+  const anni = [...new Set(stato.righe.filter(r => r.fase === 'istituito' && r.anno).map(r => r.anno))].sort();
+  $('riga-anni').hidden = anni.length < 2;
+  disegnaChips('anni', anni.map(a => ({ id: a, nome: a })), id => !stato.anniEsclusi.has(id), 'anno', 'anno');
+}
+
+function disegnaTabellaTorino(visibili) {
+  const fasi = FASI.filter(f => stato.fasi.has(f.id));
+  const perCirc = new Map(geo.circoscrizioni.map(c => [c, nuoviConti()]));
+  const daPrecisare = nuoviConti();
+  let massimo = 0;
+  for (const r of visibili) {
+    if (r.comune !== geo.torino) continue;
+    if (r.circ) perCirc.get(r.circ)[r.fase]++; else daPrecisare[r.fase]++;
+  }
+  const intestazione = `<thead><tr><th scope="col">Circoscrizione</th>${fasi.map(f =>
+    `<th scope="col"><span class="dot" style="--c:${COLORI[f.id]}"></span><span class="sr">${f.nome}</span></th>`).join('')}</tr></thead>`;
+  const celle = conti => fasi.map(f => `<td class="${conti[f.id] ? '' : 'zero'}" style="--c:${COLORI[f.id]}">${conti[f.id] || '0'}</td>`).join('');
+  const righe = geo.circoscrizioni.map(c => {
+    const conti = perCirc.get(c);
+    massimo = Math.max(massimo, fasi.reduce((s, f) => s + conti[f.id], 0));
+    return `<tr><th scope="row"><button type="button" data-circ="${c.numero}"><span class="ncirc">${c.numero}</span>
+      <small title="${esc(c.nome)}">${esc(c.nome)}</small></button></th>${celle(conti)}</tr>`;
+  }).join('');
+  const sospese = fasi.reduce((s, f) => s + daPrecisare[f.id], 0);
+  const coda = sospese ? `<tr class="da-precisare"><th scope="row">Parrocchia non ancora localizzata</th>${celle(daPrecisare)}</tr>` : '';
+  $('tab-circ').innerHTML = intestazione + `<tbody>${righe}${coda}</tbody>`;
+
+  // Stessi numeri sulla mappa: velatura e etichette delle circoscrizioni
+  strati.etichetteCirc.clearLayers();
+  strati.circoscrizioni.eachLayer(l => {
+    const c = geo.circoscrizioni.find(x => x.numero === l.feature.properties.numero);
+    const tot = fasi.reduce((s, f) => s + perCirc.get(c)[f.id], 0);
+    l.setStyle({ fillOpacity: 0.02 + (massimo ? 0.11 * tot / massimo : 0) });
+    L.marker([c.lat, c.lon], { pane: 'nomi', interactive: false, keyboard: false,
+      icon: L.divIcon({ className: 'etichetta-circ', html: `<b>${c.numero}</b><span>${tot ? plurale(tot, { uno: 'persona', tanti: 'persone' }) : ''}</span>`,
+        iconSize: [90, 52], iconAnchor: [45, 26] }),
+    }).addTo(strati.etichetteCirc);
+  });
+}
+
+function disegnaLuoghi(visibili) {
+  const cerca = chiaveNome(stato.cerca);
+  const gruppi = raggruppa(visibili, 'luogo')
+    .filter(g => !cerca || chiaveNome(nomeGruppo(g) + ' ' + doveGruppo(g) + ' ' + [...g.nomi.values()].join(' ')).includes(cerca))
+    .sort((a, b) => b.totale - a.totale || nomeGruppo(a).localeCompare(nomeGruppo(b), 'it'));
+  $('luoghi').innerHTML = gruppi.length ? gruppi.map(g => `
+    <li><button type="button" class="luogo" data-chiave="${esc(g.chiave)}" data-lat="${g.pos[0]}" data-lon="${g.pos[1]}">
+      <span class="nome">${esc(nomeGruppo(g))}</span>
+      <span class="dove">${esc(doveGruppo(g))}${g.precisa ? '' : ' (posizione indicativa)'}</span>
+      <span class="conti">${FASI.filter(f => g.conti[f.id]).map(f =>
+        `<span style="--c:${COLORI[f.id]}" title="${esc(plurale(g.conti[f.id], f))}">${g.conti[f.id]}</span>`).join('')}</span>
+    </button></li>`).join('')
+    : `<li class="vuoto">${stato.righe.length ? 'Nessun luogo con questi filtri.' : 'Nessun dato caricato.'}</li>`;
+}
+
+function disegnaSenzaLuogo(visibili) {
+  const senza = visibili.filter(r => !r.posizione);
+  $('sez-senza-luogo').hidden = !senza.length;
+  if (!senza.length) return;
+  const perVoce = new Map();
+  for (const r of senza) {
+    const voce = r.comuneTesto ? `«${r.comuneTesto}» (comune non riconosciuto)` : (r.territorio ? `${r.territorio} (comune non indicato)` : 'Comune e parrocchia non indicati');
+    const conti = perVoce.get(voce) || nuoviConti();
+    conti[r.fase]++;
+    perVoce.set(voce, conti);
+  }
+  const MAX_VOCI = 8;
+  const voci = [...perVoce].sort((a, b) => FASI.reduce((s, f) => s + b[1][f.id] - a[1][f.id], 0));
+  const altre = voci.length - MAX_VOCI;
+  $('senza-luogo').innerHTML = `<p>${plurale(senza.length, { uno: 'persona non compare', tanti: 'persone non compaiono' })} sulla mappa:</p>
+    <ul>${voci.slice(0, MAX_VOCI).map(([voce, conti]) => `<li>${esc(voce)}: ${esc(riassunto(conti))}</li>`).join('')}
+    ${altre > 0 ? `<li>e altre ${altre} voci</li>` : ''}</ul>`;
+}
+
+function disegnaPiede(visibili) {
+  const indicativi = new Set(visibili.filter(r => r.posizione && !r.precisa).map(r => r.comune && r.comune.nome)).size;
+  const parti = [];
+  if (stato.fonte) parti.push(`<p>${esc(stato.fonte)}</p>`);
+  if (indicativi) parti.push(`<p>${indicativi === 1 ? 'Un comune ha' : indicativi + ' comuni hanno'} luoghi con posizione indicativa.</p>`);
+  stato.avvisi.forEach(a => parti.push(`<p>${esc(a)}</p>`));
+  if (stato.scartate) parti.push(`<p>${plurale(stato.scartate, { uno: 'riga ignorata', tanti: 'righe ignorate' })}: fase non riconosciuta.</p>`);
+  parti.push('<p>Sulla mappa solo numeri per luogo, nessun nome.</p>');
+  $('piede').innerHTML = parti.join('');
+}
+
+/* ======================================================================
+   AGGIORNAMENTO E NAVIGAZIONE
+   ====================================================================== */
+function aggiorna() {
+  const visibili = stato.righe.filter(r => passa(r));
+  disegnaFasi();
+  disegnaFiltri();
+  disegnaTabellaTorino(visibili);
+  disegnaLuoghi(visibili);
+  disegnaSenzaLuogo(visibili);
+  disegnaPiede(visibili);
+  disegnaSegnaposti(visibili);
+}
+
+function aggiornaLivello() {
+  const livello = mappa.getZoom() >= CONFIG.ZOOM_DETTAGLIO ? 'luogo' : 'comune';
+  const dettaglio = livello === 'luogo';
+  if (dettaglio) { strati.circoscrizioni.addTo(mappa); strati.etichetteCirc.addTo(mappa); }
+  else { strati.circoscrizioni.remove(); strati.etichetteCirc.remove(); }
+  if (mappa.getZoom() <= 10.5) strati.nomiDiocesi.addTo(mappa); else strati.nomiDiocesi.remove();
+  const scala = scalaSegnaposti();
+  if (livello !== stato.livello || scala !== stato.scala) {
+    stato.livello = livello;
+    stato.scala = scala;
+    disegnaSegnaposti(stato.righe.filter(r => passa(r)));
+  }
+}
+
+function aggiornaVista() {
+  const suTorino = mappa.getZoom() >= CONFIG.ZOOM_DETTAGLIO - 0.5 && geo.limitiTorino.pad(0.1).contains(mappa.getCenter());
+  const vista = suTorino ? 'torino' : (mappa.getZoom() <= 10 ? 'diocesi' : '');
+  document.querySelectorAll('.vista button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.vista === vista)));
+  const hash = suTorino ? '#torino' : '';
+  if (location.hash !== hash) history.replaceState(null, '', location.pathname + location.search + hash);
+}
+
+const movimentoRidotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function vola(pos, zoom) {
+  if (movimentoRidotto) mappa.setView(pos, zoom); else mappa.flyTo(pos, zoom, { duration: 0.8 });
+}
+function volaA(limiti) {
+  const opzioni = { padding: [24, 24] };
+  if (movimentoRidotto) mappa.fitBounds(limiti, opzioni); else mappa.flyToBounds(limiti, { ...opzioni, duration: 0.9 });
+}
+function vaiA(vista) {
+  if (vista !== 'torino') return volaA(geo.limitiDiocesi);
+  const zoom = Math.max(mappa.getBoundsZoom(geo.limitiTorino, false, L.point(48, 48)), CONFIG.ZOOM_DETTAGLIO);
+  vola(geo.limitiTorino.getCenter(), zoom);
+}
+
+function apriInSospeso() {
+  if (!stato.daAprire) return;
+  const m = segnaposti.get(stato.daAprire);
+  if (m && stato.livello === 'luogo') {
+    m.openPopup();
+    stato.daAprire = null;
+  }
+}
+
+function mostraAvviso(html, piccolo = false) {
+  const a = $('avviso');
+  a.innerHTML = html;
+  a.classList.toggle('piccolo', piccolo);
+  a.hidden = false;
+}
+function nascondiAvviso() { $('avviso').hidden = true; }
+
+function mostraErrore(errore) {
+  mostraAvviso(`<h2>Dati non disponibili</h2><p>${esc(errore.message)}</p>`);
+}
+
+function mostraBenvenuto() {
+  mostraAvviso(`<h2>Collega il foglio</h2>
+    <p>La mappa è pronta ma non sa ancora da dove leggere l'elenco. Incolla in <code>index.html</code>, alla voce
+    <code>URL_FOGLIO_CSV</code>, il link della scheda «Mappa» pubblicata sul web in formato CSV.</p>
+    <p>Per un'anteprima trascina qui il file Excel o CSV dell'elenco: resta su questo computer.</p>
+    <button type="button" class="azione" id="scegli-file">Scegli un file</button>`);
+  $('scegli-file').addEventListener('click', () => $('file').click());
+}
+
+/* ======================================================================
+   EVENTI
+   ====================================================================== */
+function attivaInterruttore(insieme, valore) {
+  if (insieme.has(valore)) insieme.delete(valore); else insieme.add(valore);
+}
+
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('button');
+  if (!b) return;
+  const d = b.dataset;
+  if (d.fase) { attivaInterruttore(stato.fasi, d.fase); aggiorna(); }
+  else if (d.ministero) { attivaInterruttore(stato.ministeri, d.ministero); aggiorna(); }
+  else if (d.diocesi) { attivaInterruttore(stato.diocesi, d.diocesi); aggiorna(); }
+  else if (d.anno) { attivaInterruttore(stato.anniEsclusi, d.anno); aggiorna(); }
+  else if (d.vista) vaiA(d.vista);
+  else if (d.circ) {
+    const layer = strati.circoscrizioni.getLayers().find(l => l.feature.properties.numero === Number(d.circ));
+    volaA(layer.getBounds());
+    portaMappaInVista();
+  } else if (d.chiave) {
+    stato.daAprire = d.chiave;
+    vola([Number(d.lat), Number(d.lon)], Math.max(mappa.getZoom(), CONFIG.ZOOM_DETTAGLIO + 1.5));
+    portaMappaInVista();
+  }
+});
+
+function portaMappaInVista() {
+  const riquadro = $('mappa').getBoundingClientRect();
+  if (riquadro.bottom < 80 || riquadro.top > innerHeight - 80) $('mappa').scrollIntoView({ behavior: movimentoRidotto ? 'auto' : 'smooth' });
+}
+
+$('cerca').addEventListener('input', ev => {
+  stato.cerca = ev.target.value;
+  disegnaLuoghi(stato.righe.filter(r => passa(r)));
+});
+
+$('file').addEventListener('change', ev => {
+  if (ev.target.files[0]) caricaDaFile(ev.target.files[0]).catch(mostraErrore);
+  ev.target.value = '';
+});
+
+let velo = null;
+addEventListener('dragover', ev => {
+  if (![...ev.dataTransfer.types].includes('Files')) return;
+  ev.preventDefault();
+  if (!velo) {
+    velo = document.createElement('div');
+    velo.className = 'trascina';
+    velo.textContent = 'Rilascia qui il file per l\'anteprima';
+    document.body.append(velo);
+  }
+});
+addEventListener('dragleave', ev => { if (!ev.relatedTarget && velo) { velo.remove(); velo = null; } });
+addEventListener('drop', ev => {
+  if (!ev.dataTransfer.files.length) return;
+  ev.preventDefault();
+  if (velo) { velo.remove(); velo = null; }
+  caricaDaFile(ev.dataTransfer.files[0]).catch(mostraErrore);
+});
+
+mappa.on('zoomend', aggiornaLivello);
+mappa.on('moveend', () => { aggiornaVista(); apriInSospeso(); });
+
+/* ======================================================================
+   AVVIO
+   ====================================================================== */
+async function avvia() {
+  const leggi = async percorso => {
+    const r = await fetch(percorso);
+    if (!r.ok) throw new Error(`Manca il file ${percorso}: caricalo nel repository insieme a index.html.`);
+    return r.json();
+  };
+  const [territorio, circoscrizioni, piemonte] = await Promise.all([
+    leggi('dati/territorio.geojson'), leggi('dati/torino-circoscrizioni.geojson'), leggi('dati/comuni-piemonte.json'),
+  ]);
+  const apriTorino = location.hash === '#torino';
+  preparaGeografia(territorio, circoscrizioni, piemonte);
+  disegnaTerritorio(territorio, circoscrizioni);
+  mappa.fitBounds(geo.limitiDiocesi, { padding: [16, 16] });
+  if (apriTorino) {
+    mappa.setView(geo.limitiTorino.getCenter(),
+      Math.max(mappa.getBoundsZoom(geo.limitiTorino, false, L.point(48, 48)), CONFIG.ZOOM_DETTAGLIO));
+  }
+  aggiornaLivello();
+  aggiorna();
+
+  const url = new URLSearchParams(location.search).get('csv') || CONFIG.URL_FOGLIO_CSV;
+  if (url) await caricaDaFoglio(url);
+  else mostraBenvenuto();
+}
+
+avvia().catch(mostraErrore);
+</script>
+</body>
+</html>
