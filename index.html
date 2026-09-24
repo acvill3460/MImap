@@ -150,6 +150,7 @@ h2 { font: italic 500 19px/1.2 var(--serif); margin: 0 0 8px; }
   display: grid; place-items: center; font: italic 500 26px var(--serif); pointer-events: none; }
 
 /* Elementi sulla mappa */
+.sfondo-osm { filter: grayscale(1) brightness(1.07) contrast(.86); }
 .leaflet-container { font-family: var(--sans); font-size: 14px; }
 .ciambella { background: none; border: 0; }
 .ciambella svg { display: block; overflow: visible; filter: drop-shadow(0 1px 1.5px rgba(28, 36, 49, .35)); }
@@ -250,7 +251,11 @@ h2 { font: italic 500 19px/1.2 var(--serif); margin: 0 0 8px; }
 const CONFIG = {
   // Link "Pubblica sul web" della scheda Mappa, formato CSV. Esempio:
   // 'https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=123&single=true&output=csv'
-  URL_FOGLIO_CSV: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTIzh0SW4L_2sCSgRK75nRBBIJSY1NhV7u1y7ukiXntA3S1SwsjdIG1WGVUmXFa_gkUTvbQeNiBFFJW/pub?gid=1790620032&single=true&output=csv',
+  URL_FOGLIO_CSV: '',
+  // Sfondo della mappa. Senza chiave: OpenStreetMap, schiarito in grigio.
+  // Con una chiave CARTO (gratuita per uso non commerciale: carto.com/basemaps/apikey)
+  // si usa lo sfondo chiaro CARTO, con i nomi dei luoghi sopra i colori delle diocesi.
+  CHIAVE_CARTO: '',
   ZOOM_DETTAGLIO: 12,          // da questo zoom in su: un segnaposto per parrocchia
   ETICHETTE_DIOCESI: { Torino: [45.318, 7.335], Susa: [45.012, 6.84] },
   URL_SHEETJS: 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
@@ -308,11 +313,17 @@ for (const [nome, z] of [['etichette', 420], ['nomi', 430]]) {
   p.style.zIndex = z;
   p.style.pointerEvents = 'none';
 }
-const ATTRIBUZIONE = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
-  { subdomains: 'abcd', maxZoom: 19, attribution: ATTRIBUZIONE }).addTo(mappa);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png',
-  { subdomains: 'abcd', maxZoom: 19, pane: 'etichette' }).addTo(mappa);
+const OSM = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+if (CONFIG.CHIAVE_CARTO) {
+  const chiave = encodeURIComponent(CONFIG.CHIAVE_CARTO.trim());
+  L.tileLayer(`https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png?key=${chiave}`,
+    { subdomains: 'abcd', maxZoom: 19, attribution: `${OSM} &copy; <a href="https://carto.com/attributions">CARTO</a>` }).addTo(mappa);
+  L.tileLayer(`https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png?key=${chiave}`,
+    { subdomains: 'abcd', maxZoom: 19, pane: 'etichette' }).addTo(mappa);
+} else {
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    { maxZoom: 19, className: 'sfondo-osm', attribution: OSM }).addTo(mappa);
+}
 
 const strati = {
   segnaposti: L.layerGroup().addTo(mappa),
